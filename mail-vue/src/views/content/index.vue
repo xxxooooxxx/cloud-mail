@@ -88,7 +88,7 @@ import {getExtName, formatBytes} from "@/utils/file-utils.js";
 import {cvtR2Url,toOssDomain} from "@/utils/convert.js";
 import {getIconByName} from "@/utils/icon-utils.js";
 import {useSettingStore} from "@/store/setting.js";
-import {allEmailDelete} from "@/request/all-email.js";
+import {allEmailDelete, allEmailRead} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
@@ -115,26 +115,39 @@ watch(() => accountStore.currentAccountId, () => {
 
 let readRequesting = false
 
-function tryMarkRead() {
+async function tryMarkRead() {
   if (!emailStore.contentData.showUnread || readRequesting) return
   const current = email.value
   if (!current?.emailId || current.unread !== EmailUnreadEnum.UNREAD) return
 
-  // 等详情数据就绪（detailMap 已写入，或正文已有内容）再标已读
+  // 等详情数据就绪后，再让服务端实际写入已读状态。
   const full = emailStore.detailMap[current.emailId]
   const detailReady = !!full || !!(current.content || current.text)
   if (!detailReady) return
 
   readRequesting = true
   const emailId = current.emailId
-  current.unread = EmailUnreadEnum.READ
-  if (emailStore.detailMap[emailId]) {
-    emailStore.detailMap[emailId].unread = EmailUnreadEnum.READ
-  }
-  emailStore.markListRead(emailId)
-  emailRead([emailId]).finally(() => {
+  try {
+    if (emailStore.contentData.delType === 'physics') {
+      await allEmailRead([emailId])
+    } else {
+      await emailRead([emailId])
+    }
+
+    // 只有服务端成功后才更新页面与各个列表，避免前端假已读。
+    if (emailStore.contentData.email?.emailId === emailId) {
+      emailStore.contentData.email.unread = EmailUnreadEnum.READ
+    }
+    if (emailStore.detailMap[emailId]) {
+      emailStore.detailMap[emailId].unread = EmailUnreadEnum.READ
+    }
+    emailStore.markListRead(emailId)
+  } catch (e) {
+    console.error(e)
+    ElMessage({ message: e?.message || '标记已读失败', type: 'error', plain: true })
+  } finally {
     readRequesting = false
-  })
+  }
 }
 
 watch(
