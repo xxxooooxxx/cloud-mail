@@ -164,7 +164,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email'].includes(props.type)" @click="emailRead(rightClickEmail.emailId)" >
+          <el-dropdown-item v-if="['email', 'all-email'].includes(props.type)" @click="emailRead(rightClickEmail.emailId)" >
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="fluent:mail-read-20-regular" width="20" height="20" />
@@ -589,15 +589,26 @@ function changeAccountShow() {
   uiStore.accountShow = !uiStore.accountShow;
 }
 
-const handleRead = () => {
+const handleRead = async () => {
   const emailIds = getSelectedMailsIds();
-  props.emailRead(emailIds);
-  localRead(emailIds);
+  if (!emailIds.length) return;
+  try {
+    await props.emailRead(emailIds);
+    localRead(emailIds);
+  } catch (e) {
+    console.error(e);
+    ElMessage({ message: e?.message || '标记已读失败', type: 'error', plain: true });
+  }
 }
 
-function emailRead(emailId) {
-  props.emailRead([emailId])
-  localRead([emailId]);
+async function emailRead(emailId) {
+  try {
+    await props.emailRead([emailId]);
+    localRead([emailId]);
+  } catch (e) {
+    console.error(e);
+    ElMessage({ message: e?.message || '标记已读失败', type: 'error', plain: true });
+  }
 }
 
 function localRead(emailIds) {
