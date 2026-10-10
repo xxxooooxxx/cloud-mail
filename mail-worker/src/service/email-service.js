@@ -1184,18 +1184,16 @@ const emailService = {
 		// 管理员“全部邮件”使用独立接口；只允许标记仍存在的收件邮件。
 		const rows = await orm(c).select({ emailId: email.emailId }).from(email).where(and(
 			inArray(email.emailId, emailIds),
-			eq(email.type, emailConst.type.RECEIVE),
-			eq(email.isDel, isDel.NORMAL)
+			eq(email.type, emailConst.type.RECEIVE)
 		)).all();
 		const matchedIds = rows.map(row => row.emailId);
 		if (matchedIds.length !== emailIds.length) {
-			throw new BizError('邮件不存在、已删除或不是收件邮件');
+			throw new BizError('邮件不存在或不是收件邮件');
 		}
 
 		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(
 			inArray(email.emailId, matchedIds),
-			eq(email.type, emailConst.type.RECEIVE),
-			eq(email.isDel, isDel.NORMAL)
+			eq(email.type, emailConst.type.RECEIVE)
 		)).run();
 		return matchedIds;
 	}
