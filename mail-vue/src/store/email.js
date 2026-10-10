@@ -16,6 +16,7 @@ export const useEmailStore = defineStore('email', {
             showUnread: false
         },
         sendScroll: null,
+        allEmailScroll: null,
         detailMap: {},
     }),
     persist: {
@@ -67,7 +68,7 @@ export const useEmailStore = defineStore('email', {
             }
         },
         markListRead(emailId) {
-            const scrolls = [this.emailScroll, this.starScroll, this.sendScroll]
+            const scrolls = [this.emailScroll, this.starScroll, this.sendScroll, this.allEmailScroll]
             for (const scroll of scrolls) {
                 const list = scroll?.emailList
                 if (!list?.length) continue
