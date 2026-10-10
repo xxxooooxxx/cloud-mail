@@ -1142,8 +1142,62 @@ const emailService = {
 	},
 
 	async read(c, params, userId) {
-		const { emailIds } = params;
-		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds)));
+		const rawIds = params?.emailIds;
+		if (!Array.isArray(rawIds) || rawIds.length === 0) {
+			throw new BizError('请选择要标记已读的邮件');
+		}
+		const emailIds = [...new Set(rawIds.map(Number))];
+		if (emailIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+			throw new BizError('邮件列表无效');
+		}
+
+		// 只有当前用户自己的收件邮件才能走普通已读接口。
+		// 明确验证匹配行，避免 UPDATE 命中 0 行却仍向客户端返回成功。
+		const rows = await orm(c).select({ emailId: email.emailId }).from(email).where(and(
+			eq(email.userId, userId),
+			eq(email.type, emailConst.type.RECEIVE),
+			inArray(email.emailId, emailIds)
+		)).all();
+		const ownedIds = rows.map(row => row.emailId);
+		if (ownedIds.length !== emailIds.length) {
+			throw new BizError('邮件不存在或无权标记已读', 403);
+		}
+
+		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(
+			eq(email.userId, userId),
+			eq(email.type, emailConst.type.RECEIVE),
+			inArray(email.emailId, ownedIds)
+		)).run();
+		return ownedIds;
+	},
+
+	async allRead(c, params) {
+		const rawIds = params?.emailIds;
+		if (!Array.isArray(rawIds) || rawIds.length === 0) {
+			throw new BizError('请选择要标记已读的邮件');
+		}
+		const emailIds = [...new Set(rawIds.map(Number))];
+		if (emailIds.some(id => !Number.isSafeInteger(id) || id <= 0)) {
+			throw new BizError('邮件列表无效');
+		}
+
+		// 管理员“全部邮件”使用独立接口；只允许标记仍存在的收件邮件。
+		const rows = await orm(c).select({ emailId: email.emailId }).from(email).where(and(
+			inArray(email.emailId, emailIds),
+			eq(email.type, emailConst.type.RECEIVE),
+			eq(email.isDel, isDel.NORMAL)
+		)).all();
+		const matchedIds = rows.map(row => row.emailId);
+		if (matchedIds.length !== emailIds.length) {
+			throw new BizError('邮件不存在、已删除或不是收件邮件');
+		}
+
+		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(
+			inArray(email.emailId, matchedIds),
+			eq(email.type, emailConst.type.RECEIVE),
+			eq(email.isDel, isDel.NORMAL)
+		)).run();
+		return matchedIds;
 	}
 };
 
