@@ -3,6 +3,8 @@
     <emailScroll ref="sysEmailScroll"
                  :get-emailList="getEmailList"
                  :email-delete="allEmailDelete"
+                 :email-read="allEmailRead"
+                 :show-unread="true"
                  :star-add="starAdd"
                  :star-cancel="starCancel"
                  :show-star="false"
@@ -95,6 +97,7 @@ import {useEmailStore} from "@/store/email.js";
 import {
   allEmailList,
   allEmailDelete,
+  allEmailRead,
   allEmailBatchDelete,
   allEmailLatest
 } from "@/request/all-email.js";
@@ -122,6 +125,7 @@ const showBathDelete = ref(false)
 const clearLoading = ref(false)
 
 onMounted(() => {
+  emailStore.allEmailScroll = sysEmailScroll;
   latest();
 })
 
@@ -286,6 +290,7 @@ function jumpContent(email) {
   emailStore.contentData.delType = 'physics'
   emailStore.contentData.showStar = false
   emailStore.contentData.showReply = false
+  emailStore.contentData.showUnread = true
   router.push({name: 'content'})
 }
 
