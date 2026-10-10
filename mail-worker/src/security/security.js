@@ -36,6 +36,7 @@ const requirePerms = [
 	'/role/set',
 	'/role/setDefault',
 	'/allEmail/list',
+	'/allEmail/read',
 	'/allEmail/delete',
 	'/allEmail/batchDelete',
 	'/allEmail/latest',
